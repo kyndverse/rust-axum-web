@@ -1,10 +1,16 @@
-use axum::extract::State;
+mod error;
+mod response;
+
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::routing::post;
+use axum::routing::{patch, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
+
+use crate::error::AppError;
+use crate::response::ApiResponse;
 
 #[derive(Clone)]
 struct AppState {
@@ -23,40 +29,96 @@ struct CreateTask {
     title: String,
 }
 
+#[derive(Deserialize)]
+struct UpdateTask {
+    title: Option<String>,
+    completed: Option<bool>,
+}
+
 async fn create_task(
     State(app_state): State<AppState>,
     Json(payload): Json<CreateTask>,
-) -> Result<Json<Task>, (StatusCode, String)> {
+) -> Result<(StatusCode, Json<ApiResponse<Task>>), AppError> {
     let data_result = sqlx::query_as!(
         Task,
         "INSERT INTO tasks (title) VALUES ($1) RETURNING id, title, completed",
         payload.title
     )
     .fetch_one(&app_state.db)
-    .await;
+    .await?;
 
-    match data_result {
-        Ok(task) => Ok(Json(task)),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            String::from("Failed to create task"),
-        )),
-    }
+    Ok((
+        StatusCode::CREATED,
+        Json(ApiResponse {
+            code: StatusCode::CREATED.as_u16(),
+            message: "Task created successfully!".to_string(),
+            data: Some(data_result),
+        }),
+    ))
 }
 
 async fn get_tasks(
     State(app_state): State<AppState>,
-) -> Result<Json<Vec<Task>>, (StatusCode, String)> {
+) -> Result<Json<ApiResponse<Vec<Task>>>, AppError> {
     let data_result = sqlx::query_as!(Task, "SELECT * FROM tasks")
         .fetch_all(&app_state.db)
-        .await;
+        .await?;
 
-    match data_result {
-        Ok(tasks) => Ok(Json(tasks)),
-        Err(_) => Err((
-            StatusCode::INTERNAL_SERVER_ERROR,
-            String::from("Failed to get task"),
-        )),
+    Ok(Json(ApiResponse {
+        code: StatusCode::OK.as_u16(),
+        message: "List task".to_string(),
+        data: Some(data_result),
+    }))
+}
+
+async fn update_task(
+    State(app_state): State<AppState>,
+    Path(id): Path<i32>,
+    Json(payload): Json<UpdateTask>,
+) -> Result<Json<ApiResponse<Task>>, AppError> {
+    let task = sqlx::query_as!(
+        Task,
+        "
+    UPDATE tasks
+    SET
+        title = COALESCE($1, title),
+        completed = COALESCE($2, completed)
+    WHERE id = $3
+    RETURNING id, title, completed
+    ",
+        payload.title,
+        payload.completed,
+        id
+    )
+    .fetch_optional(&app_state.db)
+    .await?;
+
+    match task {
+        Some(task) => Ok(Json(ApiResponse {
+            code: StatusCode::OK.as_u16(),
+            message: "Update task successfully!".to_string(),
+            data: Some(task),
+        })),
+        None => Err(AppError::NotFound("Task not found".to_string())),
+    }
+}
+
+async fn delete_task(
+    State(app_state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<Json<ApiResponse<()>>, AppError> {
+    let deteted = sqlx::query!("DELETE FROM tasks WHERE id = $1", id)
+        .execute(&app_state.db)
+        .await?;
+
+    if deteted.rows_affected() > 0 {
+        Ok(Json(ApiResponse {
+            code: StatusCode::OK.as_u16(),
+            message: "Delete task successfully!".to_string(),
+            data: None,
+        }))
+    } else {
+        Err(AppError::NotFound("Task not found".to_string()))
     }
 }
 
@@ -72,7 +134,8 @@ async fn main() {
     let app_state = AppState { db: db_pool };
 
     let app = Router::new()
-        .route("/api/task", post(create_task).get(get_tasks))
+        .route("/api/tasks", post(create_task).get(get_tasks))
+        .route("/api/tasks/{id}", patch(update_task).delete(delete_task))
         .with_state(app_state);
 
     let listener = TcpListener::bind("localhost:8000").await.unwrap();
