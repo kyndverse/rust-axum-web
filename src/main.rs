@@ -1,45 +1,79 @@
-use axum::response::IntoResponse;
-use axum::{ Json, Router };
-use axum::extract::{ Path, Query };
-use axum::routing::{ get, post };
-use serde::{ Deserialize, Serialize };
+use axum::extract::State;
+use axum::http::StatusCode;
+use axum::routing::post;
+use axum::{Json, Router};
+use serde::{Deserialize, Serialize};
+use sqlx::PgPool;
 use tokio::net::TcpListener;
 
-async fn detail_user(Path(id): Path<String>) -> Json<User> {
-    Json(User {
-        id,
-        name: String::from("Eko"),
-        email: String::from("eko@gmail.com"),
-    })
+#[derive(Clone)]
+struct AppState {
+    db: PgPool,
+}
+
+#[derive(Serialize)]
+struct Task {
+    id: i32,
+    title: String,
+    completed: bool,
 }
 
 #[derive(Deserialize)]
-struct Pagination {
-    page: u32,
-    size: u32,
+struct CreateTask {
+    title: String,
 }
 
-async fn index_user(Query(pagination): Query<Pagination>) -> String {
-    format!("Menampilan dara user di page: {} dengan size {}", pagination.page, pagination.size)
+async fn create_task(
+    State(app_state): State<AppState>,
+    Json(payload): Json<CreateTask>,
+) -> Result<Json<Task>, (StatusCode, String)> {
+    let data_result = sqlx::query_as!(
+        Task,
+        "INSERT INTO tasks (title) VALUES ($1) RETURNING id, title, completed",
+        payload.title
+    )
+    .fetch_one(&app_state.db)
+    .await;
+
+    match data_result {
+        Ok(task) => Ok(Json(task)),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            String::from("Failed to create task"),
+        )),
+    }
 }
 
-#[derive(Deserialize, Serialize)]
-struct User {
-    id: String,
-    name: String,
-    email: String,
-}
+async fn get_tasks(
+    State(app_state): State<AppState>,
+) -> Result<Json<Vec<Task>>, (StatusCode, String)> {
+    let data_result = sqlx::query_as!(Task, "SELECT * FROM tasks")
+        .fetch_all(&app_state.db)
+        .await;
 
-async fn create_user(Json(paylaod): Json<User>) -> impl IntoResponse {
-    format!("User created with Username: {} and email: {}", paylaod.name, paylaod.email)
-} // Cek ulang
+    match data_result {
+        Ok(tasks) => Ok(Json(tasks)),
+        Err(_) => Err((
+            StatusCode::INTERNAL_SERVER_ERROR,
+            String::from("Failed to get task"),
+        )),
+    }
+}
 
 #[tokio::main]
 async fn main() {
+    dotenv::dotenv().ok();
+
+    let database_url = std::env::var("DATABASE_URL").expect("DATABASE_URL must be set");
+    let db_pool = PgPool::connect(&database_url)
+        .await
+        .expect("Failed to create pool");
+
+    let app_state = AppState { db: db_pool };
+
     let app = Router::new()
-        .route("/api/users", get(index_user))
-        .route("/api/users/{id}", get(detail_user))
-        .route("/api/users", post(create_user));
+        .route("/api/task", post(create_task).get(get_tasks))
+        .with_state(app_state);
 
     let listener = TcpListener::bind("localhost:8000").await.unwrap();
 
