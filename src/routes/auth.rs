@@ -5,18 +5,15 @@ use jsonwebtoken::{EncodingKey, Header, encode};
 
 use crate::{
     error::AppError,
-    models::{
-        auth::{Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse},
-        user::User,
-    },
-    response::ApiResponse,
+    models::auth::{Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse},
+    response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
 
 pub async fn register(
     State(app_state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
-) -> Result<Json<ApiResponse<RegisterResponse>>, AppError> {
+) -> ApiCreatedResult<RegisterResponse> {
     let hashed_password =
         hash(payload.password, DEFAULT_COST).map_err(|_| AppError::InternalServerError)?;
 
@@ -27,14 +24,17 @@ pub async fn register(
     ).fetch_optional(&app_state.db).await?;
 
     match user {
-        Some(user) => Ok(Json(ApiResponse {
-            code: StatusCode::CREATED.as_u16(),
-            message: "User registered successfully".to_string(),
-            data: Some(RegisterResponse {
-                id: user.id,
-                username: user.username,
+        Some(user) => Ok((
+            StatusCode::CREATED,
+            Json(ApiResponse {
+                code: StatusCode::CREATED.as_u16(),
+                message: "User registered successfully".to_string(),
+                data: Some(RegisterResponse {
+                    id: user.id,
+                    username: user.username,
+                }),
             }),
-        })),
+        )),
         None => Err(AppError::Conflict("Username already exists".to_string())),
     }
 }
@@ -42,7 +42,7 @@ pub async fn register(
 pub async fn login(
     State(app_state): State<AppState>,
     Json(payload): Json<LoginRequest>,
-) -> Result<Json<ApiResponse<LoginResponse>>, AppError> {
+) -> ApiResult<LoginResponse> {
     let user = sqlx::query!(
         "SELECT id, username, password from users WHERE username = $1",
         payload.username
@@ -61,21 +61,17 @@ pub async fn login(
 
     let expiration = Utc::now()
         .checked_add_signed(Duration::minutes(10))
-        .ok_or(AppError::Unauthorized)?;
+        .ok_or(AppError::InternalServerError)?;
 
     let claims = Claim {
-        sub: user.username.clone(),
+        sub: user.id.to_string(),
         exp: expiration.timestamp() as usize,
     };
 
     let token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(
-            std::env::var("JWT_SECRET")
-                .expect("JWT_SECRET not found")
-                .as_bytes(),
-        ),
+        &EncodingKey::from_secret(app_state.jwt_secret.as_bytes()),
     )
     .map_err(|_| AppError::InternalServerError)?;
 
@@ -83,7 +79,7 @@ pub async fn login(
         code: 200,
         message: "Login successfully!".to_string(),
         data: Some(LoginResponse {
-            user: User {
+            user: RegisterResponse {
                 id: user.id,
                 username: user.username,
             },

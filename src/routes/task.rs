@@ -8,13 +8,13 @@ use crate::{
     AppState,
     error::AppError,
     models::task::{CreateTask, Task, UpdateTask},
-    response::ApiResponse,
+    response::{ApiCreatedResult, ApiResponse, ApiResult},
 };
 
 pub async fn create_task(
     State(app_state): State<AppState>,
     Json(payload): Json<CreateTask>,
-) -> Result<(StatusCode, Json<ApiResponse<Task>>), AppError> {
+) -> ApiCreatedResult<Task> {
     let data_result = sqlx::query_as!(
         Task,
         "INSERT INTO tasks (title) VALUES ($1) RETURNING id, title, completed",
@@ -33,9 +33,7 @@ pub async fn create_task(
     ))
 }
 
-pub async fn get_tasks(
-    State(app_state): State<AppState>,
-) -> Result<Json<ApiResponse<Vec<Task>>>, AppError> {
+pub async fn get_tasks(State(app_state): State<AppState>) -> ApiResult<Vec<Task>> {
     let data_result = sqlx::query_as!(Task, "SELECT * FROM tasks")
         .fetch_all(&app_state.db)
         .await?;
@@ -51,7 +49,7 @@ pub async fn update_task(
     State(app_state): State<AppState>,
     Path(id): Path<i32>,
     Json(payload): Json<UpdateTask>,
-) -> Result<Json<ApiResponse<Task>>, AppError> {
+) -> ApiResult<Task> {
     let task = sqlx::query_as!(
         Task,
         "
@@ -82,7 +80,7 @@ pub async fn update_task(
 pub async fn delete_task(
     State(app_state): State<AppState>,
     Path(id): Path<i32>,
-) -> Result<Json<ApiResponse<()>>, AppError> {
+) -> ApiResult<Task> {
     let deteted = sqlx::query!("DELETE FROM tasks WHERE id = $1", id)
         .execute(&app_state.db)
         .await?;

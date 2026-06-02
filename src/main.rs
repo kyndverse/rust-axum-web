@@ -18,8 +18,12 @@ async fn main() {
     let db_pool = PgPool::connect(&database_url)
         .await
         .expect("Failed to create pool");
+    let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
-    let app_state = AppState { db: db_pool };
+    let app_state = AppState {
+        db: db_pool,
+        jwt_secret,
+    };
 
     let app = Router::new()
         .route(
