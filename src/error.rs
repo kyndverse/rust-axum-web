@@ -13,6 +13,18 @@ pub enum AppError {
 
     #[error("Resource not found: {0}")]
     NotFound(String),
+
+    #[error("Bad request: {0}")]
+    BadRequest(String),
+
+    #[error("Conflict: {0}")]
+    Conflict(String),
+
+    #[error("Internal server error")]
+    InternalServerError,
+
+    #[error("Unauthorized")]
+    Unauthorized,
 }
 
 #[derive(Serialize)]
@@ -36,6 +48,34 @@ impl IntoResponse for AppError {
                 ErrorResponse {
                     code: 404,
                     message: message.clone(),
+                },
+            ),
+            AppError::BadRequest(message) => (
+                StatusCode::BAD_REQUEST,
+                ErrorResponse {
+                    code: 400,
+                    message: message.clone(),
+                },
+            ),
+            AppError::InternalServerError => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                ErrorResponse {
+                    code: 500,
+                    message: "Internal server error".to_string(),
+                },
+            ),
+            AppError::Conflict(message) => (
+                StatusCode::CONFLICT,
+                ErrorResponse {
+                    code: 409,
+                    message: message.clone(),
+                },
+            ),
+            AppError::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                ErrorResponse {
+                    code: 401,
+                    message: "Invalid username or password".to_string(),
                 },
             ),
         };
