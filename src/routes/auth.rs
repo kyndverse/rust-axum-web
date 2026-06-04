@@ -57,8 +57,10 @@ pub async fn login(
 
     let user = user.ok_or(AppError::Unauthorized)?;
 
-    let is_valid =
-        verify(payload.password, &user.password).map_err(|_| AppError::InternalServerError)?;
+    let is_valid = tokio::task::spawn_blocking(move || verify(payload.password, &user.password))
+        .await
+        .map_err(|_| AppError::InternalServerError)?
+        .map_err(|_| AppError::InternalServerError)?;
 
     if !is_valid {
         return Err(AppError::Unauthorized);
@@ -76,7 +78,7 @@ pub async fn login(
     let token = encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(app_state.jwt_secret.as_bytes()),
+        &EncodingKey::from_secret(app_state.jwt_secret.as_ref()),
     )
     .map_err(|_| AppError::InternalServerError)?;
 
