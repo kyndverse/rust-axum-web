@@ -1,11 +1,16 @@
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{Extension, Json, extract::State, http::StatusCode};
 use bcrypt::{DEFAULT_COST, hash, verify};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
 
 use crate::{
     error::AppError,
-    models::auth::{Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse},
+    models::{
+        auth::{
+            Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserContext,
+        },
+        user::User,
+    },
     response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
@@ -85,5 +90,24 @@ pub async fn login(
             },
             token,
         }),
+    }))
+}
+
+pub async fn profile(
+    State(app_state): State<AppState>,
+    Extension(user_ctx): Extension<UserContext>,
+) -> ApiResult<User> {
+    let user = sqlx::query_as!(
+        User,
+        "SELECT id, username FROM users WHERE id = $1",
+        &user_ctx.id
+    )
+    .fetch_one(&app_state.db)
+    .await?;
+
+    Ok(Json(ApiResponse {
+        code: 200,
+        message: "Profile user".to_string(),
+        data: Some(user),
     }))
 }

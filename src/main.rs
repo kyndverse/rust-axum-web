@@ -1,12 +1,13 @@
 mod error;
+mod layers;
 mod models;
 mod response;
 mod routes;
 mod state;
 
 use crate::state::AppState;
-use axum::Router;
-use axum::routing::{patch, post};
+use axum::routing::{get, patch, post};
+use axum::{Router, middleware};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 
@@ -25,7 +26,9 @@ async fn main() {
         jwt_secret,
     };
 
-    let app = Router::new()
+    let public_route = Router::new().route("/api/auth/login", post(routes::auth::login));
+
+    let protected_route = Router::new()
         .route(
             "/api/tasks",
             post(routes::task::create_task).get(routes::task::get_tasks),
@@ -35,7 +38,15 @@ async fn main() {
             patch(routes::task::update_task).delete(routes::task::delete_task),
         )
         .route("/api/auth/register", post(routes::auth::register))
-        .route("/api/auth/login", post(routes::auth::login))
+        .route("/api/auth/me", get(routes::auth::profile))
+        .layer(middleware::from_fn_with_state(
+            app_state.clone(),
+            layers::auth::validate_auth,
+        ));
+
+    let app = Router::new()
+        .merge(public_route)
+        .merge(protected_route)
         .with_state(app_state);
 
     let listener = TcpListener::bind("localhost:8000").await.unwrap();

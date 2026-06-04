@@ -25,6 +25,9 @@ pub enum AppError {
 
     #[error("Unauthorized")]
     Unauthorized,
+
+    #[error("Invalid token")]
+    InvalidToken,
 }
 
 #[derive(Serialize)]
@@ -76,6 +79,13 @@ impl IntoResponse for AppError {
                 ErrorResponse {
                     code: 401,
                     message: "Invalid username or password".to_string(),
+                },
+            ),
+            AppError::InvalidToken => (
+                StatusCode::UNAUTHORIZED,
+                ErrorResponse {
+                    code: 401,
+                    message: "Invalid or missing token".to_string(),
                 },
             ),
         };

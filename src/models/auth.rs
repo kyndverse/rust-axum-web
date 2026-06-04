@@ -29,3 +29,8 @@ pub struct LoginResponse {
     pub user: RegisterResponse,
     pub token: String,
 }
+
+#[derive(Clone)]
+pub struct UserContext {
+    pub id: i32,
+}
