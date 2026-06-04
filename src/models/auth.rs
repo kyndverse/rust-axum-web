@@ -14,7 +14,7 @@ pub struct RegisterResponse {
 
 #[derive(Deserialize, Serialize)]
 pub struct Claim {
-    pub sub: String,
+    pub sub: i32,
     pub exp: usize,
 }
 

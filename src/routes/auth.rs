@@ -64,7 +64,7 @@ pub async fn login(
         .ok_or(AppError::InternalServerError)?;
 
     let claims = Claim {
-        sub: user.id.to_string(),
+        sub: user.id,
         exp: expiration.timestamp() as usize,
     };
 
