@@ -5,6 +5,7 @@ use jsonwebtoken::{EncodingKey, Header, encode};
 
 use crate::{
     error::AppError,
+    // layers::auth::USER_CONTEXT,
     models::{
         auth::{
             Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserContext,
@@ -99,6 +100,8 @@ pub async fn profile(
     State(app_state): State<AppState>,
     Extension(user_ctx): Extension<UserContext>,
 ) -> ApiResult<User> {
+    // let user_ctxs = USER_CONTEXT.with(|u| u.clone());
+
     let user = sqlx::query_as!(
         User,
         "SELECT id, username FROM users WHERE id = $1",

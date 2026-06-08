@@ -11,6 +11,10 @@ use axum::{
 };
 use jsonwebtoken::{DecodingKey, Validation, decode};
 
+tokio::task_local! {
+    pub static USER_CONTEXT: UserContext;
+}
+
 pub async fn validate_auth(
     State(app_state): State<AppState>,
     mut req: Request,
@@ -35,4 +39,10 @@ pub async fn validate_auth(
     });
 
     Ok(next.run(req).await)
+
+    // let user_context = UserContext {
+    //     id: claim.claims.sub,
+    // };
+
+    // Ok(USER_CONTEXT.scope(user_context, next.run(req)).await)
 }
