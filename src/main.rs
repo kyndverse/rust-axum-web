@@ -5,11 +5,15 @@ mod response;
 mod routes;
 mod state;
 
+use std::net::SocketAddr;
+
 use crate::state::AppState;
 use axum::routing::{get, patch, post};
 use axum::{Router, middleware};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
+use tower_governor::GovernorLayer;
+use tower_governor::governor::GovernorConfigBuilder;
 
 #[tokio::main]
 async fn main() {
@@ -25,6 +29,12 @@ async fn main() {
         db: db_pool,
         jwt_secret,
     };
+
+    let governor_layer = GovernorConfigBuilder::default()
+        .per_second(5)
+        .burst_size(10)
+        .finish()
+        .expect("Could not build governor");
 
     let public_route = Router::new().route("/api/auth/login", post(routes::auth::login));
 
@@ -47,9 +57,15 @@ async fn main() {
     let app = Router::new()
         .merge(public_route)
         .merge(protected_route)
-        .with_state(app_state);
+        .with_state(app_state)
+        .layer(GovernorLayer::new(governor_layer));
 
     let listener = TcpListener::bind("localhost:8000").await.unwrap();
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .await
+    .unwrap();
 }
