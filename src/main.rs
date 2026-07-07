@@ -1,12 +1,14 @@
 mod error;
 mod layers;
 mod models;
+mod modules;
 mod response;
 mod routes;
 mod state;
 
 use std::net::SocketAddr;
 
+use crate::modules::auth::AuthService;
 use crate::state::AppState;
 use axum::routing::{get, patch, post};
 use axum::{Router, middleware};
@@ -26,8 +28,9 @@ async fn main() {
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
     let app_state = AppState {
-        db: db_pool,
+        db: db_pool.clone(),
         jwt_secret,
+        auth_service: AuthService::new(db_pool.clone()),
     };
 
     let governor_layer = GovernorConfigBuilder::default()
@@ -36,7 +39,9 @@ async fn main() {
         .finish()
         .expect("Could not build governor");
 
-    let public_route = Router::new().route("/api/auth/login", post(routes::auth::login));
+    let public_route = Router::new()
+        .route("/api/auth/register", post(modules::auth::routes::register))
+        .route("/api/auth/login", post(routes::auth::login));
 
     let protected_route = Router::new()
         .route(
@@ -47,7 +52,6 @@ async fn main() {
             "/api/tasks/{id}",
             patch(routes::task::update_task).delete(routes::task::delete_task),
         )
-        .route("/api/auth/register", post(routes::auth::register))
         .route("/api/auth/me", get(routes::auth::profile))
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
