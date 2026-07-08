@@ -9,6 +9,7 @@ mod state;
 use std::net::SocketAddr;
 
 use crate::modules::auth::AuthService;
+use crate::modules::task::TaskService;
 use crate::state::AppState;
 use axum::routing::{patch, post};
 use axum::{Router, middleware};
@@ -28,9 +29,9 @@ async fn main() {
     let jwt_secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
     let app_state = AppState {
-        db: db_pool.clone(),
         jwt_secret: jwt_secret.clone(),
         auth_service: AuthService::new(db_pool.clone(), jwt_secret.clone()),
+        task_service: TaskService::new(db_pool.clone()),
     };
 
     let governor_layer = GovernorConfigBuilder::default()
@@ -46,12 +47,9 @@ async fn main() {
     let protected_route = Router::new()
         .route(
             "/api/tasks",
-            post(routes::task::create_task).get(routes::task::get_tasks),
+            post(modules::task::route::add_task).get(modules::task::route::get_all_task),
         )
-        .route(
-            "/api/tasks/{id}",
-            patch(routes::task::update_task).delete(routes::task::delete_task),
-        )
+        .route("/api/tasks/{id}", patch(modules::task::route::edit_task))
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
             layers::auth::validate_auth,
