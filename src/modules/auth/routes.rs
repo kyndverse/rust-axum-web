@@ -1,10 +1,10 @@
 use crate::{
-    response::{ApiCreatedResult, ApiResponse},
+    response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
 use axum::{Json, extract::State, http::StatusCode};
 
-use super::types::{RegisterRequest, RegisterResponse};
+use super::types::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
 
 pub async fn register(
     State(app_state): State<AppState>,
@@ -23,4 +23,17 @@ pub async fn register(
             }),
         }),
     ))
+}
+
+pub async fn login(
+    State(app_state): State<AppState>,
+    Json(payload): Json<LoginRequest>,
+) -> ApiResult<LoginResponse> {
+    let result = app_state.auth_service.login(payload).await?;
+
+    Ok(Json(ApiResponse {
+        code: StatusCode::OK.as_u16(),
+        message: "Login successfully".to_string(),
+        data: Some(result),
+    }))
 }

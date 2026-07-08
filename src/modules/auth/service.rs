@@ -1,7 +1,9 @@
-use bcrypt::{DEFAULT_COST, hash};
+use bcrypt::{DEFAULT_COST, hash, verify};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{EncodingKey, Header, encode};
 use sqlx::PgPool;
 
-use super::types::{RegisterRequest, RegisterResponse};
+use super::types::{Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
 use crate::error::AppError;
 
 use super::repository::AuthRepository;
@@ -10,12 +12,14 @@ use super::repository::AuthRepository;
 
 pub struct AuthService {
     repo: AuthRepository,
+    jwt_secret: String,
 }
 
 impl AuthService {
-    pub fn new(db: PgPool) -> Self {
+    pub fn new(db: PgPool, jwt_secret: String) -> Self {
         Self {
             repo: AuthRepository::new(db),
+            jwt_secret,
         }
     }
 
@@ -35,5 +39,44 @@ impl AuthService {
             Some(user) => Ok(user),
             None => Err(AppError::Conflict("Username already exists".to_string())),
         }
+    }
+
+    pub async fn login(&self, payload: LoginRequest) -> Result<LoginResponse, AppError> {
+        let user = self.repo.get_user_by_username(payload.username).await?;
+        let user = user.ok_or(AppError::Unauthorized)?;
+
+        let is_valid =
+            tokio::task::spawn_blocking(move || verify(payload.password, &user.password))
+                .await
+                .map_err(|_| AppError::InternalServerError)?
+                .map_err(|_| AppError::InternalServerError)?;
+
+        if !is_valid {
+            return Err(AppError::Unauthorized);
+        }
+
+        let expiration = Utc::now()
+            .checked_add_signed(Duration::minutes(10))
+            .ok_or(AppError::InternalServerError)?;
+
+        let claims = Claim {
+            sub: user.id,
+            exp: expiration.timestamp() as usize,
+        };
+
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(&self.jwt_secret.as_ref()),
+        )
+        .map_err(|_| AppError::InternalServerError)?;
+
+        Ok(LoginResponse {
+            user: RegisterResponse {
+                id: user.id,
+                username: user.username,
+            },
+            token,
+        })
     }
 }

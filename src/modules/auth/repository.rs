@@ -1,7 +1,7 @@
 use sqlx::PgPool;
 
 use super::types::{RegisterRequest, RegisterResponse};
-use crate::error::AppError;
+use crate::{error::AppError, models::user::User};
 
 #[derive(Clone)]
 pub struct AuthRepository {
@@ -22,6 +22,18 @@ impl AuthRepository {
         data.username,
         data.password
       ).fetch_optional(&self.db).await?;
+
+        Ok(user)
+    }
+
+    pub async fn get_user_by_username(&self, username: String) -> Result<Option<User>, AppError> {
+        let user = sqlx::query_as!(
+            User,
+            "SELECT id, username, password from users WHERE username = $1",
+            username
+        )
+        .fetch_optional(&self.db)
+        .await?;
 
         Ok(user)
     }

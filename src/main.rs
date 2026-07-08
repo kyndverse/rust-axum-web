@@ -10,7 +10,7 @@ use std::net::SocketAddr;
 
 use crate::modules::auth::AuthService;
 use crate::state::AppState;
-use axum::routing::{get, patch, post};
+use axum::routing::{patch, post};
 use axum::{Router, middleware};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -29,8 +29,8 @@ async fn main() {
 
     let app_state = AppState {
         db: db_pool.clone(),
-        jwt_secret,
-        auth_service: AuthService::new(db_pool.clone()),
+        jwt_secret: jwt_secret.clone(),
+        auth_service: AuthService::new(db_pool.clone(), jwt_secret.clone()),
     };
 
     let governor_layer = GovernorConfigBuilder::default()
@@ -41,7 +41,7 @@ async fn main() {
 
     let public_route = Router::new()
         .route("/api/auth/register", post(modules::auth::routes::register))
-        .route("/api/auth/login", post(routes::auth::login));
+        .route("/api/auth/login", post(modules::auth::routes::login));
 
     let protected_route = Router::new()
         .route(
@@ -52,7 +52,6 @@ async fn main() {
             "/api/tasks/{id}",
             patch(routes::task::update_task).delete(routes::task::delete_task),
         )
-        .route("/api/auth/me", get(routes::auth::profile))
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
             layers::auth::validate_auth,
