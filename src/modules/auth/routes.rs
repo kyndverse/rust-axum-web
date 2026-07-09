@@ -1,12 +1,11 @@
 use crate::{
-    models::auth::UserContext,
     modules::auth::types::UserProfile,
     response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
 use axum::{Extension, Json, extract::State, http::StatusCode};
 
-use super::types::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
+use super::types::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserContext};
 
 pub async fn register(
     State(app_state): State<AppState>,

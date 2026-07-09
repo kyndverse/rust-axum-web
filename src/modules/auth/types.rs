@@ -18,6 +18,12 @@ pub struct Claim {
     pub exp: usize,
 }
 
+#[derive(Clone)]
+pub struct UserContext {
+    pub id: i32,
+}
+
+
 #[derive(Deserialize, Debug)]
 pub struct LoginRequest {
     pub username: String,
