@@ -3,7 +3,6 @@ mod layers;
 mod models;
 mod modules;
 mod response;
-mod routes;
 mod state;
 
 use std::net::SocketAddr;
@@ -50,7 +49,10 @@ async fn main() {
             "/api/tasks",
             post(modules::task::route::add_task).get(modules::task::route::get_all_task),
         )
-        .route("/api/tasks/{id}", patch(modules::task::route::edit_task))
+        .route(
+            "/api/tasks/{id}",
+            patch(modules::task::route::edit_task).delete(modules::task::route::delete_task),
+        )
         .layer(middleware::from_fn_with_state(
             app_state.clone(),
             layers::auth::validate_auth,

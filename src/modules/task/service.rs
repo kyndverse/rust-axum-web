@@ -33,7 +33,13 @@ impl TaskService {
         }
     }
 
-    // pub async fn delete_task(&self, id: i32) -> Result<String, AppError> {
+    pub async fn delete_task(&self, id: i32) -> Result<(), AppError> {
+        let row_affected = self.repo.delete_task_by_id(id).await?;
 
-    // }
+        if row_affected == 0 {
+            return Err(AppError::NotFound("Task not found".into()));
+        }
+
+        Ok(())
+    }
 }

@@ -49,3 +49,13 @@ pub async fn edit_task(
         data: Some(task),
     }))
 }
+
+pub async fn delete_task(State(app_state): State<AppState>, Path(id): Path<i32>) -> ApiResult<()> {
+    app_state.task_service.delete_task(id).await?;
+
+    Ok(Json(ApiResponse {
+        code: StatusCode::OK.as_u16(),
+        message: "Delete task successfully".to_string(),
+        data: None,
+    }))
+}
