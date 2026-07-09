@@ -4,6 +4,7 @@ use crate::{
     state::AppState,
 };
 use axum::{Extension, Json, extract::State, http::StatusCode};
+use validator::Validate;
 
 use super::types::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse, UserContext};
 
@@ -11,6 +12,8 @@ pub async fn register(
     State(app_state): State<AppState>,
     Json(payload): Json<RegisterRequest>,
 ) -> ApiCreatedResult<RegisterResponse> {
+    payload.validate()?;
+
     let result = app_state.auth_service.register(payload).await?;
 
     Ok((

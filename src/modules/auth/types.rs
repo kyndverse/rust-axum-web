@@ -1,8 +1,16 @@
 use serde::{Deserialize, Serialize};
+use validator::Validate;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct RegisterRequest {
+    #[validate(length(
+        min = 3,
+        max = 20,
+        message = "Username must be between 3 and 20 characters"
+    ))]
     pub username: String,
+
+    #[validate(length(min = 8, max = 100, message = "Password must be at least 8 characters"))]
     pub password: String,
 }
 
@@ -22,7 +30,6 @@ pub struct Claim {
 pub struct UserContext {
     pub id: i32,
 }
-
 
 #[derive(Deserialize, Debug)]
 pub struct LoginRequest {
