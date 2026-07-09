@@ -4,7 +4,7 @@ use jsonwebtoken::{EncodingKey, Header, encode};
 use sqlx::PgPool;
 
 use super::types::{Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
-use crate::error::AppError;
+use crate::{error::AppError, modules::auth::types::UserProfile};
 
 use super::repository::AuthRepository;
 
@@ -77,6 +77,19 @@ impl AuthService {
                 username: user.username,
             },
             token,
+        })
+    }
+
+    pub async fn get_profile(&self, id: i32) -> Result<UserProfile, AppError> {
+        let user = self
+            .repo
+            .get_user_by_id(id)
+            .await?
+            .ok_or_else(|| AppError::NotFound("User not found".into()))?;
+
+        Ok(UserProfile {
+            id: user.id,
+            username: user.username,
         })
     }
 }

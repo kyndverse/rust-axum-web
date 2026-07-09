@@ -11,7 +11,7 @@ use std::net::SocketAddr;
 use crate::modules::auth::AuthService;
 use crate::modules::task::TaskService;
 use crate::state::AppState;
-use axum::routing::{patch, post};
+use axum::routing::{get, patch, post};
 use axum::{Router, middleware};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -45,6 +45,7 @@ async fn main() {
         .route("/api/auth/login", post(modules::auth::routes::login));
 
     let protected_route = Router::new()
+        .route("/api/auth/me", get(modules::auth::routes::get_profile))
         .route(
             "/api/tasks",
             post(modules::task::route::add_task).get(modules::task::route::get_all_task),

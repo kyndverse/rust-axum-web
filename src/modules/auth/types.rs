@@ -29,3 +29,9 @@ pub struct LoginResponse {
     pub user: RegisterResponse,
     pub token: String,
 }
+
+#[derive(Serialize)]
+pub struct UserProfile {
+    pub id: i32,
+    pub username: String,
+}

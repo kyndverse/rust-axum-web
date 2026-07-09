@@ -1,8 +1,10 @@
 use crate::{
+    models::auth::UserContext,
+    modules::auth::types::UserProfile,
     response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
-use axum::{Json, extract::State, http::StatusCode};
+use axum::{Extension, Json, extract::State, http::StatusCode};
 
 use super::types::{LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
 
@@ -35,5 +37,18 @@ pub async fn login(
         code: StatusCode::OK.as_u16(),
         message: "Login successfully".to_string(),
         data: Some(result),
+    }))
+}
+
+pub async fn get_profile(
+    State(app_state): State<AppState>,
+    Extension(user_ctx): Extension<UserContext>,
+) -> ApiResult<UserProfile> {
+    let user = app_state.auth_service.get_profile(user_ctx.id).await?;
+
+    Ok(Json(ApiResponse {
+        code: StatusCode::OK.as_u16(),
+        message: "Get profile successfully".to_string(),
+        data: Some(user),
     }))
 }

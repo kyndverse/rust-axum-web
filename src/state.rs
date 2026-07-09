@@ -1,5 +1,3 @@
-use sqlx::PgPool;
-
 use crate::modules::{auth::AuthService, task::TaskService};
 
 #[derive(Clone)]
