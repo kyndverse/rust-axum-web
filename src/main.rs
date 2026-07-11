@@ -2,7 +2,6 @@ mod error;
 mod layers;
 mod models;
 mod modules;
-mod response;
 mod state;
 
 use std::net::SocketAddr;

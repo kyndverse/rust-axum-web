@@ -1,6 +1,6 @@
 use crate::{
     error::AppError,
-    models::auth::{Claim, UserContext},
+    modules::auth::types::{Claims, UserContext},
     state::AppState,
 };
 use axum::{
@@ -27,7 +27,7 @@ pub async fn validate_auth(
         .and_then(|v| v.strip_prefix("Bearer "))
         .ok_or_else(|| AppError::InvalidToken)?;
 
-    let claim = decode::<Claim>(
+    let claims = decode::<Claims>(
         token,
         &DecodingKey::from_secret(&app_state.jwt_secret.as_ref()),
         &Validation::default(),
@@ -35,7 +35,7 @@ pub async fn validate_auth(
     .map_err(|_| AppError::InvalidToken)?;
 
     req.extensions_mut().insert(UserContext {
-        id: claim.claims.sub,
+        id: claims.claims.sub,
     });
 
     Ok(next.run(req).await)

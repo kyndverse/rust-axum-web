@@ -21,7 +21,7 @@ pub struct RegisterResponse {
 }
 
 #[derive(Deserialize, Serialize)]
-pub struct Claim {
+pub struct Claims {
     pub sub: i32,
     pub exp: usize,
 }

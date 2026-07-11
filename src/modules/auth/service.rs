@@ -3,13 +3,12 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{EncodingKey, Header, encode};
 use sqlx::PgPool;
 
-use super::types::{Claim, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
+use super::types::{Claims, LoginRequest, LoginResponse, RegisterRequest, RegisterResponse};
 use crate::{error::AppError, modules::auth::types::UserProfile};
 
 use super::repository::AuthRepository;
 
 #[derive(Clone)]
-
 pub struct AuthService {
     repo: AuthRepository,
     jwt_secret: String,
@@ -59,7 +58,7 @@ impl AuthService {
             .checked_add_signed(Duration::minutes(10))
             .ok_or(AppError::InternalServerError)?;
 
-        let claims = Claim {
+        let claims = Claims {
             sub: user.id,
             exp: expiration.timestamp() as usize,
         };

@@ -5,8 +5,9 @@ use axum::{
 };
 
 use super::types::{CreateTaskRequest, Task, UpdateTaskRequest};
+
 use crate::{
-    response::{ApiCreatedResult, ApiResponse, ApiResult},
+    modules::common::response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
 

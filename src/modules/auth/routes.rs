@@ -1,6 +1,6 @@
 use crate::{
     modules::auth::types::UserProfile,
-    response::{ApiCreatedResult, ApiResponse, ApiResult},
+    modules::common::response::{ApiCreatedResult, ApiResponse, ApiResult},
     state::AppState,
 };
 use axum::{Extension, Json, extract::State, http::StatusCode};
